@@ -313,6 +313,18 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
     if (conversation.status === 'connected') conversation.sendUserMessage(text);
   }, [typed, conversation]);
 
+  /**
+   * Jump straight to the gate. On stage you rarely want to stand there for a
+   * full sixty seconds, and the paywall is the part worth showing.
+   */
+  const skipToGate = useCallback(() => {
+    const el = audioRef.current;
+    if (el) el.pause();
+    setElapsed(PREVIEW_SECONDS);
+    track('paywall_hit', { at: el?.currentTime ?? 0, reason: 'skipped' });
+    setStage('paywall');
+  }, [track]);
+
   const stepIndex = STEPS.findIndex((s) => s.key === stage);
   const lastAgentTurn = [...transcript].reverse().find((t) => t.role === 'agent');
   const live = config?.mode === 'signed' || config?.mode === 'public';
@@ -389,7 +401,11 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
                   <span className="pulse" />
                   {live ? 'Listening' : 'Recorded session'}
                 </p>
-                {lastAgentTurn && <div className="now-asking">{lastAgentTurn.text}</div>}
+                {lastAgentTurn && (
+                  <div className="now-asking-wrap">
+                    <div className="now-asking">{lastAgentTurn.text}</div>
+                  </div>
+                )}
                 <div className="scrollable">
                   {transcript.length === 0 && <p className="note">Connecting to the agent.</p>}
                   {transcript.map((t, i) => (
@@ -441,6 +457,11 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
                 <p className="eyebrow">Scratch demo · {brief.company || 'your company'}</p>
                 <h2 className="display display-l">Sixty seconds.</h2>
                 <Wave elapsed={elapsed} />
+                <div className="btn-row" style={{ marginTop: 12 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={skipToGate}>
+                    ⏭ Skip to the gate
+                  </button>
+                </div>
                 <p className="note" style={{ marginTop: 10, maxWidth: 460 }}>
                   {payload.preview.source === 'fixture'
                     ? 'Generated during the build and served from disk. Said plainly, on purpose.'

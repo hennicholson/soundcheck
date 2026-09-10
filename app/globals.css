@@ -95,8 +95,12 @@ body {
 
 /* ---------- the one screen ---------- */
 
+/* Fixed to the viewport: the tool never grows the page. Long transcripts
+   scroll inside their own pane, not by stretching the card. */
 .app {
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   padding: 14px;
@@ -227,6 +231,15 @@ body {
   gap: 16px;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+
+/* The question keeps its own line count in check so a long one cannot push
+   the transcript out of the card. */
+.now-asking-wrap {
+  flex: none;
+  max-height: 30%;
+  overflow-y: auto;
 }
 
 .live-pane {

@@ -12,7 +12,8 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { agentDefinition, CLIENT_TOOLS } from '../lib/voice/jamSeshAgent';
 
-const API = 'https://api.elevenlabs.io/v1/convai/agents/create';
+const CREATE = 'https://api.elevenlabs.io/v1/convai/agents/create';
+const UPDATE = (id: string) => `https://api.elevenlabs.io/v1/convai/agents/${id}`;
 const ENV_FILE = '.env.local';
 
 function loadEnv() {
@@ -32,11 +33,17 @@ async function main() {
   }
 
   const body = agentDefinition('Sound Check');
-  console.log(`Creating agent "Sound Check" with ${CLIENT_TOOLS.length} client tools:`);
+  // Re-running this must not litter the account with duplicate agents, so an
+  // existing id means update in place.
+  const existing = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
+
+  console.log(
+    `${existing ? 'Updating' : 'Creating'} agent "Sound Check" with ${CLIENT_TOOLS.length} client tools:`
+  );
   for (const t of CLIENT_TOOLS) console.log(`  - ${t.name}`);
 
-  const res = await fetch(API, {
-    method: 'POST',
+  const res = await fetch(existing ? UPDATE(existing) : CREATE, {
+    method: existing ? 'PATCH' : 'POST',
     headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
@@ -47,8 +54,8 @@ async function main() {
     process.exit(1);
   }
 
-  const { agent_id } = JSON.parse(text) as { agent_id: string };
-  console.log(`\nAgent created: ${agent_id}`);
+  const agent_id = (JSON.parse(text) as { agent_id?: string }).agent_id ?? existing!;
+  console.log(`\nAgent ${existing ? 'updated' : 'created'}: ${agent_id}`);
 
   // Write it straight back into .env.local so the app picks it up on reload.
   if (existsSync(ENV_FILE)) {
