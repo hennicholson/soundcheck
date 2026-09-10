@@ -37,12 +37,25 @@ export interface BangerPreview {
   elapsedMs: number;
 }
 
-const FAL_MODEL = process.env.FAL_MUSIC_MODEL ?? 'fal-ai/lyria3';
-const FAL_QUEUE = 'https://queue.fal.run';
+/** Lyria 3 Pro on fal.ai. Slug lives in env because model catalogues move. */
+const FAL_MODEL = process.env.FAL_MUSIC_MODEL ?? 'fal-ai/lyria3/pro';
+const FAL_SYNC = 'https://fal.run';
 const FIXTURE_URL = '/fixtures/banger-preview.mp3';
 
-export function isDemoMode(env: NodeJS.ProcessEnv = process.env): boolean {
-  return String(env.DEMO_MODE ?? '').toLowerCase() === 'true' || !env.FAL_KEY;
+/**
+ * Two separate switches, because the demo needs them separately.
+ *
+ * DEMO_MODE is the master offline switch: recorded session, fixture track, no
+ * network at all. PREBAKED_TRACK serves the fixture track while leaving the
+ * live voice agent running — which is exactly how this is presented. A live
+ * intake is watchable; waiting forty seconds for a generation is not.
+ */
+export function usesFixtureAudio(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (
+    String(env.DEMO_MODE ?? '').toLowerCase() === 'true' ||
+    String(env.PREBAKED_TRACK ?? '').toLowerCase() === 'true' ||
+    !env.FAL_KEY
+  );
 }
 
 /**
@@ -139,45 +152,35 @@ export async function generateBangerPreview(brief: BangerBrief): Promise<BangerP
   const startedAt = Date.now();
   const prompt = buildMusicPrompt(brief);
 
-  if (isDemoMode()) return fixturePreview(brief, startedAt);
+  if (usesFixtureAudio()) return fixturePreview(brief, startedAt);
 
   try {
-    const submit = await fetch(`${FAL_QUEUE}/${FAL_MODEL}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Key ${process.env.FAL_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt,
-        duration_seconds: PREVIEW_SECONDS,
-        negative_prompt: brief.bannedWording.join(', ') || undefined,
-      }),
-    });
+    // Lyria 3 Pro takes a single `prompt` and returns an MP3. It is a
+    // synchronous endpoint, so there is no queue to poll — just a slow POST.
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      Number(process.env.FAL_TIMEOUT_MS ?? 180000)
+    );
 
-    if (!submit.ok) throw new Error(`fal submit ${submit.status}: ${await submit.text()}`);
-
-    const queued = (await submit.json()) as {
-      request_id?: string;
-      status_url?: string;
-      response_url?: string;
-    };
-
-    const statusUrl = queued.status_url ?? `${FAL_QUEUE}/${FAL_MODEL}/requests/${queued.request_id}/status`;
-    const responseUrl = queued.response_url ?? `${FAL_QUEUE}/${FAL_MODEL}/requests/${queued.request_id}`;
-    const auth = { Authorization: `Key ${process.env.FAL_KEY}` };
-    const deadline = Date.now() + Number(process.env.FAL_TIMEOUT_MS ?? 120000);
-
-    while (Date.now() < deadline) {
-      await sleep(2000);
-      const status = await fetch(statusUrl, { headers: auth });
-      const state = (await status.json()) as { status?: string };
-      if (state.status === 'COMPLETED') break;
-      if (state.status === 'FAILED') throw new Error('fal reported FAILED');
+    let res: Response;
+    try {
+      res = await fetch(`${FAL_SYNC}/${FAL_MODEL}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Key ${process.env.FAL_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
     }
 
-    const result = await fetch(responseUrl, { headers: auth });
-    const payload = await result.json();
+    if (!res.ok) throw new Error(`fal ${res.status}: ${await res.text()}`);
+
+    const payload = (await res.json()) as { audio?: unknown; lyrics?: string };
     const url = extractAudioUrl(payload);
     if (!url) throw new Error('no audio URL in fal response');
 

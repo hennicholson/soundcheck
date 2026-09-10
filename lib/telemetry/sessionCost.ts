@@ -29,7 +29,8 @@ export interface CostRates {
 export function ratesFromEnv(env: NodeJS.ProcessEnv = process.env): CostRates {
   return {
     voiceAgentPerMinute: num(env.COST_VOICE_PER_MINUTE, 0.12),
-    musicPerTrack: num(env.COST_MUSIC_PER_TRACK, 0.4),
+    // Lyria 3 Pro on fal.ai is listed at $0.08 per generated track.
+    musicPerTrack: num(env.COST_MUSIC_PER_TRACK, 0.08),
     hostingPerSession: num(env.COST_HOSTING_PER_SESSION, 0.002),
     founderHourlyRate: num(env.FOUNDER_HOURLY_RATE, 250),
   };

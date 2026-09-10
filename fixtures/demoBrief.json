@@ -1,0 +1,37 @@
+{
+  "schema": "bangerbrief/v1",
+  "generatedAt": "2026-09-10T02:23:45.614Z",
+  "brief": {
+    "company": "Northwind Logistics",
+    "moment": "PayFlo expense system rollout, first week of March",
+    "objective": "Submit each receipt the same day, instead of hoarding forty of them until the last day of the quarter",
+    "audience": "~400 drivers and warehouse leads, at the top of the March all-hands, then permanently in onboarding",
+    "requiredMessages": [
+      "Same day, every day"
+    ],
+    "bannedWording": [
+      "seamless",
+      "Concur, or any named previous vendor"
+    ],
+    "stories": [
+      "The Marcy tire story: Marcy in Dispatch expensed a truck tire on a personal card and waited eleven weeks for reimbursement. It is why nobody trusts the old system."
+    ],
+    "pronunciations": [
+      {
+        "term": "PayFlo",
+        "saidAs": "PAY-FLO"
+      }
+    ],
+    "tone": "Warm, funny, a little self-aware. Never corporate rock.",
+    "genreReference": "Motown soul with a live horn section, Tower of Power energy, handclaps on the two and four",
+    "constraints": [
+      "Under 90 seconds for the all-hands slot"
+    ],
+    "vagueAnswersProbed": [
+      "That's a feeling, and I can't write a feeling. Say it worked — what does somebody do differently on Tuesday that they wouldn't have done on Monday?"
+    ]
+  },
+  "completeness": 1,
+  "probeCount": 1,
+  "pronunciationCount": 1
+}

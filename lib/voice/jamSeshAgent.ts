@@ -175,9 +175,12 @@ export function agentDefinition(name = 'Sound Check') {
       asr: { quality: 'high', user_input_audio_format: 'pcm_16000' },
     },
     platform_settings: {
+      // Backs the consent screen with actual platform settings rather than a
+      // promise: the audio is never recorded and nothing is retained.
+      // ElevenLabs requires retention_days to be -1 under zero retention.
       privacy: {
         record_voice: false,
-        retention_days: 0,
+        retention_days: -1,
         zero_retention_mode: true,
       },
     },
