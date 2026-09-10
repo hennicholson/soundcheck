@@ -791,13 +791,12 @@ body {
   position: absolute;
   left: 4px;
   bottom: calc(100% - 10px);
-  z-index: 3;
+  /* Above the video plate, the scrim and every pane: he is the foreground. */
+  z-index: 20;
   width: clamp(110px, 17%, 164px);
   transform-origin: bottom left;
   transform: rotate(-6deg);
-  opacity: 0.4;
-  filter: grayscale(0.75);
-  transition: opacity 0.28s ease, filter 0.28s ease, transform 0.28s ease;
+  transition: transform 0.28s ease;
   pointer-events: none;
 }
 
@@ -811,8 +810,6 @@ body {
 
 /* Leans in and bobs while talking, so it reads as someone in the room. */
 .dj.talking {
-  opacity: 1;
-  filter: none;
   animation: dj-bob 1.7s ease-in-out infinite;
 }
 

@@ -454,7 +454,12 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
                   while the agent is talking, so the screen says whose turn it
                   is without needing a label. */}
               <div className={`dj ${agentSpeaking ? 'talking' : ''}`} aria-hidden="true">
-                <img src="/video/dj-talking.webp" alt="" />
+                {/* An animated WebP cannot be paused, so idle swaps to a single
+                    still frame. Same art, same alpha, just not moving. */}
+                <img
+                  src={agentSpeaking ? '/video/dj-talking.webp' : '/video/dj-still.webp'}
+                  alt=""
+                />
               </div>
               <input
                 value={typed}
