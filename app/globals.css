@@ -365,6 +365,44 @@ body {
   padding: 15px 26px;
 }
 
+.btn-sm {
+  font-size: 0.8rem;
+  padding: 9px 16px;
+  border-width: 1px;
+}
+
+/* ---------- composer: typing is always available ---------- */
+
+.composer {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--stage-line);
+  flex: none;
+}
+
+.composer input {
+  flex: 1;
+  min-width: 0;
+  background: var(--stage-black);
+  border: 1px solid var(--stage-line);
+  border-radius: 3px;
+  color: var(--paper);
+  font-family: var(--body);
+  font-size: 0.88rem;
+  padding: 10px 12px;
+}
+
+.composer input::placeholder {
+  color: var(--grey);
+}
+
+.composer input:focus {
+  outline: none;
+  border-color: var(--ember);
+}
+
 .btn-row {
   display: flex;
   gap: 10px;

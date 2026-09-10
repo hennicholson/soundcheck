@@ -93,6 +93,7 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
   const [payload, setPayload] = useState<PreviewPayload | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [typed, setTyped] = useState('');
 
   const sessionId = useMemo(
     () => `sc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
@@ -199,7 +200,11 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
 
   /* ---------------- fixture replay (OR-13) ---------------- */
 
-  const replayFixture = useCallback(() => {
+  /**
+   * `speed` compresses the recorded session. 1 is real time; the demo button
+   * runs it at 4x so a whole intake fits in about twelve seconds on stage.
+   */
+  const replayFixture = useCallback((speed = 1) => {
     for (const step of DEMO_SESSION) {
       setTimeout(() => {
         if (step.kind === 'agent' || step.kind === 'user') {
@@ -213,9 +218,20 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
         } else if (step.tool === 'finalizeBrief') {
           clientTools.finalizeBrief();
         }
-      }, step.at);
+      }, step.at / speed);
     }
   }, [clientTools]);
+
+  /** The stage demo: same recorded session, four times faster. */
+  const runFastDemo = useCallback(() => {
+    if (conversation.status === 'connected') conversation.endSession();
+    setTranscript([]);
+    setBrief(emptyBrief());
+    setStage('listening');
+    startedAt.current = Date.now();
+    track('session_started', { mode: 'demo-fast' });
+    replayFixture(4);
+  }, [conversation, replayFixture, track]);
 
   const start = useCallback(async () => {
     setStage('listening');
@@ -284,6 +300,19 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
 
   /* ---------------- render ---------------- */
 
+  /**
+   * Typing is a first-class way to answer, not a fallback. Rooms are loud,
+   * some people would rather not talk out loud in an open office, and a
+   * spelled-out product name is more reliable typed than said.
+   */
+  const sendTyped = useCallback(() => {
+    const text = typed.trim();
+    if (!text) return;
+    setTranscript((t) => appendTurn(t, 'user', text));
+    setTyped('');
+    if (conversation.status === 'connected') conversation.sendUserMessage(text);
+  }, [typed, conversation]);
+
   const stepIndex = STEPS.findIndex((s) => s.key === stage);
   const lastAgentTurn = [...transcript].reverse().find((t) => t.role === 'agent');
   const live = config?.mode === 'signed' || config?.mode === 'public';
@@ -338,11 +367,16 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
               like you&apos;re filling in a form. You&apos;ll leave with a finished brief and
               sixty seconds of your banger.
             </p>
-            <button className="btn btn-primary btn-lg" onClick={start}>
-              🎵 Start your sound check
-            </button>
+            <div className="btn-row">
+              <button className="btn btn-primary btn-lg" onClick={start}>
+                🎵 Start your sound check
+              </button>
+              <button className="btn btn-ghost btn-lg" onClick={runFastDemo}>
+                ⏩ Watch a 15-second demo
+              </button>
+            </div>
             <p className="meta" style={{ marginTop: 14 }}>
-              {live ? 'Microphone required' : 'Offline · replaying a recorded session'}
+              {live ? 'Microphone or keyboard, your call' : 'Offline · replaying a recorded session'}
             </p>
           </div>
         )}
@@ -368,6 +402,19 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
                 </div>
               </div>
               <LiveBrief brief={brief} flash={flash} />
+            </div>
+
+            <div className="composer">
+              <input
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendTyped()}
+                placeholder="Or just type your answer…"
+                aria-label="Type your answer"
+              />
+              <button className="btn btn-primary btn-sm" onClick={sendTyped} disabled={!typed.trim()}>
+                Send
+              </button>
             </div>
           </div>
         )}
