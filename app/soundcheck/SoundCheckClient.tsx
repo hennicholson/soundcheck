@@ -94,6 +94,9 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [typed, setTyped] = useState('');
+  // True whenever this session is a fixture replay rather than a live call,
+  // including the fast demo run on an account that does have a live agent.
+  const [replaying, setReplaying] = useState(false);
 
   const sessionId = useMemo(
     () => `sc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
@@ -205,6 +208,7 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
    * runs it at 4x so a whole intake fits in about twelve seconds on stage.
    */
   const replayFixture = useCallback((speed = 1) => {
+    setReplaying(true);
     for (const step of DEMO_SESSION) {
       setTimeout(() => {
         if (step.kind === 'agent' || step.kind === 'user') {
@@ -227,6 +231,8 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
     if (conversation.status === 'connected') conversation.endSession();
     setTranscript([]);
     setBrief(emptyBrief());
+    setPayload(null);
+    setElapsed(0);
     setStage('listening');
     startedAt.current = Date.now();
     track('session_started', { mode: 'demo-fast' });
@@ -234,6 +240,7 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
   }, [conversation, replayFixture, track]);
 
   const start = useCallback(async () => {
+    setReplaying(false);
     setStage('listening');
     startedAt.current = Date.now();
     track('session_started', { mode: config?.mode ?? 'demo' });
@@ -329,11 +336,12 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
   const lastAgentTurn = [...transcript].reverse().find((t) => t.role === 'agent');
   const live = config?.mode === 'signed' || config?.mode === 'public';
 
-  // On the live path the SDK tells us who is talking. On the recorded path
-  // there is no audio, so treat a fresh agent line as the agent talking.
-  const agentSpeaking = live
-    ? conversation.isSpeaking
-    : transcript[transcript.length - 1]?.role === 'agent';
+  // On a live call the SDK tells us who is talking. On a replay there is no
+  // audio at all, so the last turn in the transcript stands in for it.
+  const agentSpeaking =
+    live && !replaying
+      ? conversation.isSpeaking
+      : transcript[transcript.length - 1]?.role === 'agent';
 
   return (
     <>
