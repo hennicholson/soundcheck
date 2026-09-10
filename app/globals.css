@@ -781,6 +781,55 @@ body {
   padding: 2px 0;
 }
 
+/* ---------- fold ---------- */
+
+.fold {
+  width: 100%;
+  text-align: left;
+  border-top: 1px solid var(--stage-line);
+  margin-top: 14px;
+  padding-top: 10px;
+}
+
+.fold summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--grey);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fold summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold summary::before {
+  content: '+';
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--ember);
+}
+
+.fold[open] summary::before {
+  content: '−';
+}
+
+.fold summary:hover {
+  color: var(--paper);
+}
+
+.fold-total {
+  font-family: var(--mono);
+  letter-spacing: 0;
+  color: var(--paper);
+}
+
 .divider {
   height: 1px;
   background: var(--stage-line);

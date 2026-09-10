@@ -344,18 +344,24 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
       <Ticker />
 
       <div className="card">
-        {/* Muted, looping, decorative, and clipped to this box. */}
-        <video
-          className="bg-video"
-          src="/video/stage-loop.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          aria-hidden="true"
-        />
-        <div className="bg-scrim" aria-hidden="true" />
+        {/* Muted, looping, decorative, and clipped to this box. It drops away
+            at the paywall: that screen is a decision, and motion behind a
+            decision is just noise. */}
+        {stage !== 'paywall' && (
+          <>
+            <video
+              className="bg-video"
+              src="/video/stage-loop.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              aria-hidden="true"
+            />
+            <div className="bg-scrim" aria-hidden="true" />
+          </>
+        )}
 
         <div className="rail">
           {STEPS.map((s, i) => (
@@ -812,35 +818,39 @@ function Paywall({
         </div>
       </div>
 
-      <hr className="divider" />
-
-      <div style={{ width: '100%', textAlign: 'left' }}>
-        <p className="eyebrow">What this session cost</p>
-        {cost.lines.map((l) => (
-          <div key={l.label} className="cost-line">
-            <span>
-              {l.label} · {l.detail}
-            </span>
-            <span>${l.usd.toFixed(4)}</span>
+      {/* Folded away by default. The two doors are the decision; the cost is
+          the receipt, and a receipt does not need to be the loudest thing. */}
+      <details className="fold">
+        <summary>
+          What this session cost <span className="fold-total">${cost.totalUsd.toFixed(2)}</span>
+        </summary>
+        <div style={{ width: '100%', textAlign: 'left', paddingTop: 10 }}>
+          {cost.lines.map((l) => (
+            <div key={l.label} className="cost-line">
+              <span>
+                {l.label} · {l.detail}
+              </span>
+              <span>${l.usd.toFixed(4)}</span>
+            </div>
+          ))}
+          <div
+            className="cost-line"
+            style={{ color: 'var(--paper)', fontSize: '0.85rem', marginTop: 4 }}
+          >
+            <span>Total</span>
+            <span>${cost.totalUsd.toFixed(2)}</span>
           </div>
-        ))}
-        <div
-          className="cost-line"
-          style={{ color: 'var(--paper)', fontSize: '0.85rem', marginTop: 4 }}
-        >
-          <span>Total</span>
-          <span>${cost.totalUsd.toFixed(2)}</span>
+          <div className="cost-line">
+            <span>Founder minutes used</span>
+            <span>0, against ~{cost.founderMinutesSaved} saved on the call</span>
+          </div>
+          <p className="note" style={{ marginTop: 10 }}>
+            {cost.notes.join(' ')} Persistence is{' '}
+            {persistence.stubbed ? 'stubbed' : 'live'}; this would write to{' '}
+            {persistence.wouldWrite.map((w) => w.table).join(', ')}.
+          </p>
         </div>
-        <div className="cost-line">
-          <span>Founder minutes used</span>
-          <span>0, against ~{cost.founderMinutesSaved} saved on the call</span>
-        </div>
-        <p className="note" style={{ marginTop: 10 }}>
-          {cost.notes.join(' ')} Persistence is{' '}
-          {persistence.stubbed ? 'stubbed' : 'live'}; this would write to{' '}
-          {persistence.wouldWrite.map((w) => w.table).join(', ')}.
-        </p>
-      </div>
+      </details>
     </>
   );
 }
