@@ -438,6 +438,7 @@ body {
   margin-top: 12px;
   border-top: 1px solid var(--stage-line);
   flex: none;
+  position: relative; /* the DJ hangs off this top edge */
 }
 
 .composer input {
@@ -783,64 +784,63 @@ body {
 
 /* ---------- the DJ ---------- */
 
-/* Sits at the bottom of the transcript pane. Dimmed and still when it is your
-   turn, lit and animating when the agent is talking. */
+/* He stands ON the composer's top edge: bottom:100% puts his feet exactly on
+   that border, and the small negative nudge makes him look like he is leaning
+   over the rail rather than balanced on it. */
 .dj {
   position: absolute;
-  left: 10px;
-  bottom: 8px;
-  z-index: 2;
-  width: clamp(132px, 21%, 208px);
+  left: 4px;
+  bottom: calc(100% - 10px);
+  z-index: 3;
+  width: clamp(110px, 17%, 164px);
   transform-origin: bottom left;
-  transform: rotate(-7deg) scale(0.95);
-  opacity: 0.34;
-  filter: grayscale(0.7);
+  transform: rotate(-6deg);
+  opacity: 0.4;
+  filter: grayscale(0.75);
   transition: opacity 0.28s ease, filter 0.28s ease, transform 0.28s ease;
   pointer-events: none;
-}
-
-/* Leans in and bobs while talking, so it reads as someone in the room. */
-.dj.talking {
-  opacity: 1;
-  filter: none;
-  transform: rotate(-4deg) scale(1.06);
-  animation: dj-bob 1.6s ease-in-out infinite;
-}
-
-@keyframes dj-bob {
-  0%,
-  100% {
-    transform: rotate(-4deg) scale(1.06) translateY(0);
-  }
-  50% {
-    transform: rotate(-6deg) scale(1.06) translateY(-5px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dj.talking {
-    animation: none;
-  }
 }
 
 .dj img {
   display: block;
   width: 100%;
   height: auto;
+  /* grounds him against the composer line instead of floating over it */
+  filter: drop-shadow(0 7px 11px rgba(0, 0, 0, 0.6));
 }
 
-/* Keep the last lines of transcript clear of the DJ. */
+/* Leans in and bobs while talking, so it reads as someone in the room. */
+.dj.talking {
+  opacity: 1;
+  filter: none;
+  animation: dj-bob 1.7s ease-in-out infinite;
+}
+
+@keyframes dj-bob {
+  0%,
+  100% {
+    transform: rotate(-6deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-3deg) translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dj.talking {
+    animation: none;
+    transform: rotate(-4deg);
+  }
+}
+
+/* Keep the last transcript lines from hiding behind him. */
 .transcript-pane .scrollable {
-  padding-bottom: clamp(96px, 15vh, 150px);
+  padding-bottom: clamp(66px, 10vh, 104px);
 }
 
 @media (max-width: 780px) {
   .dj {
-    left: auto;
-    right: 8px;
-    bottom: 58px;
-    width: 96px;
-    transform-origin: bottom right;
+    width: 90px;
   }
   .transcript-pane .scrollable {
     padding-bottom: 8px;

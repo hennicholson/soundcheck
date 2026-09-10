@@ -435,11 +435,6 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
                     <div className="now-asking">{lastAgentTurn.text}</div>
                   </div>
                 )}
-                {/* The DJ animates only while the agent is actually talking,
-                    so the screen tells you whose turn it is without a label. */}
-                <div className={`dj ${agentSpeaking ? 'talking' : ''}`} aria-hidden="true">
-                  <img src="/video/dj-talking.webp" alt="" />
-                </div>
                 <div className="scrollable">
                   {transcript.length === 0 && <p className="note">Connecting to the agent.</p>}
                   {transcript.map((t, i) => (
@@ -455,6 +450,12 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
             </div>
 
             <div className="composer">
+              {/* Perched on the top edge of the composer. He animates only
+                  while the agent is talking, so the screen says whose turn it
+                  is without needing a label. */}
+              <div className={`dj ${agentSpeaking ? 'talking' : ''}`} aria-hidden="true">
+                <img src="/video/dj-talking.webp" alt="" />
+              </div>
               <input
                 value={typed}
                 onChange={(e) => setTyped(e.target.value)}
