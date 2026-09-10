@@ -786,20 +786,41 @@ body {
 /* Sits at the bottom of the transcript pane. Dimmed and still when it is your
    turn, lit and animating when the agent is talking. */
 .dj {
-  flex: none;
-  align-self: flex-start;
-  margin-top: 8px;
-  width: clamp(84px, 16%, 128px);
-  opacity: 0.32;
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  z-index: 2;
+  width: clamp(132px, 21%, 208px);
+  transform-origin: bottom left;
+  transform: rotate(-7deg) scale(0.95);
+  opacity: 0.34;
   filter: grayscale(0.7);
-  transition: opacity 0.25s ease, filter 0.25s ease, transform 0.25s ease;
-  transform: scale(0.96);
+  transition: opacity 0.28s ease, filter 0.28s ease, transform 0.28s ease;
+  pointer-events: none;
 }
 
+/* Leans in and bobs while talking, so it reads as someone in the room. */
 .dj.talking {
   opacity: 1;
   filter: none;
-  transform: scale(1);
+  transform: rotate(-4deg) scale(1.06);
+  animation: dj-bob 1.6s ease-in-out infinite;
+}
+
+@keyframes dj-bob {
+  0%,
+  100% {
+    transform: rotate(-4deg) scale(1.06) translateY(0);
+  }
+  50% {
+    transform: rotate(-6deg) scale(1.06) translateY(-5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dj.talking {
+    animation: none;
+  }
 }
 
 .dj img {
@@ -808,13 +829,21 @@ body {
   height: auto;
 }
 
+/* Keep the last lines of transcript clear of the DJ. */
+.transcript-pane .scrollable {
+  padding-bottom: clamp(96px, 15vh, 150px);
+}
+
 @media (max-width: 780px) {
   .dj {
-    position: absolute;
-    right: 12px;
-    bottom: 64px;
-    width: 76px;
-    margin-top: 0;
+    left: auto;
+    right: 8px;
+    bottom: 58px;
+    width: 96px;
+    transform-origin: bottom right;
+  }
+  .transcript-pane .scrollable {
+    padding-bottom: 8px;
   }
 }
 

@@ -357,7 +357,10 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
           <>
             <video
               className="bg-video"
-              src="/video/stage-loop.mp4"
+              // The intake screen gets its own plate; key it so React swaps
+              // the element rather than trying to reuse the running one.
+              key={stage === 'listening' ? 'brief' : 'stage'}
+              src={stage === 'listening' ? '/video/brief-loop.mp4' : '/video/stage-loop.mp4'}
               autoPlay
               muted
               loop
