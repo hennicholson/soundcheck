@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# The tool is the point, so / goes straight to it and /demo explains it.
+[[redirects]]
+  from = "/"
+  to = "/soundcheck"
+  status = 302
+  force = false
