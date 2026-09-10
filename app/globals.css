@@ -97,30 +97,31 @@ body {
 
 /* ---------- background plate ---------- */
 
-/* Motion behind the tool, turned down far enough that it never competes with
-   the type. The scrim keeps contrast honest wherever the footage goes bright. */
+/* Motion inside the card only, clipped by its rounded corners, turned down far
+   enough that it never competes with the type. The scrim keeps contrast honest
+   wherever the footage goes bright. */
 .bg-video {
-  position: fixed;
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.16;
+  opacity: 0.18;
   z-index: 0;
   pointer-events: none;
 }
 
 .bg-scrim {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   background: radial-gradient(
-      ellipse at 50% 40%,
-      rgba(14, 14, 18, 0.35) 0%,
-      rgba(14, 14, 18, 0.82) 70%,
-      rgba(14, 14, 18, 0.94) 100%
-    );
+    ellipse at 50% 45%,
+    rgba(22, 22, 28, 0.4) 0%,
+    rgba(22, 22, 28, 0.8) 72%,
+    rgba(22, 22, 28, 0.93) 100%
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -143,10 +144,6 @@ body {
   gap: 10px;
 }
 
-/* The card sits on the plate, so it needs its own ground to stay readable. */
-.card {
-  backdrop-filter: blur(2px);
-}
 
 .topbar {
   display: flex;
@@ -173,12 +170,19 @@ body {
   margin: 0 auto;
   flex: 1;
   min-height: 0;
-  background: rgba(22, 22, 28, 0.88);
+  background: var(--stage-raise);
   border: 1px solid var(--stage-line);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative; /* the video plate is clipped to this box */
+}
+
+/* Everything in the card rides above the video plate. */
+.card > *:not(.bg-video):not(.bg-scrim) {
+  position: relative;
+  z-index: 1;
 }
 
 /* progress rail across the top of the card */

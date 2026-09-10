@@ -331,19 +331,6 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
 
   return (
     <>
-      {/* Muted, looping, decorative. Never the reason a page is slow to speak. */}
-      <video
-        className="bg-video"
-        src="/video/stage-loop.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-        aria-hidden="true"
-      />
-      <div className="bg-scrim" aria-hidden="true" />
-
       <div className="app">
         <div className="topbar">
         <span className="wordmark">
@@ -357,6 +344,19 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
       <Ticker />
 
       <div className="card">
+        {/* Muted, looping, decorative, and clipped to this box. */}
+        <video
+          className="bg-video"
+          src="/video/stage-loop.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          aria-hidden="true"
+        />
+        <div className="bg-scrim" aria-hidden="true" />
+
         <div className="rail">
           {STEPS.map((s, i) => (
             <i key={s.key} className={i < stepIndex ? 'done' : i === stepIndex ? 'now' : ''} />
