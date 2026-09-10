@@ -4,6 +4,9 @@
  * Three colours, no more: dark stage, one hot accent, off-white paper.
  * Type is the identity; there is no logo file. Heavy condensed uppercase for
  * display, tight tracking, section heads in sentence case ending in a period.
+ *
+ * Layout rule: the whole tool is ONE contained card that never scrolls the
+ * page. Steps swap inside it. Everything below is in service of that.
  */
 
 :root {
@@ -14,12 +17,15 @@
   --highlight: #ffd23f;
   --paper: #f7f4ec;
   --grey: #7a7a88;
+  --dim: #b9b9c4;
 
   --display: var(--font-display), 'Haettenschweiler', 'Arial Narrow Bold', 'Impact',
     system-ui, sans-serif;
   --body: var(--font-body), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica,
     Arial, sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --card-w: 940px;
 }
 
 * {
@@ -42,45 +48,42 @@ body {
   font-family: var(--display);
   text-transform: uppercase;
   letter-spacing: -0.02em;
-  line-height: 0.92;
+  line-height: 0.94;
   margin: 0;
   font-weight: 900;
 }
 
 .display-xl {
-  font-size: clamp(2.6rem, 9vw, 6.5rem);
+  font-size: clamp(2.1rem, 5.6vw, 3.6rem);
 }
 .display-l {
-  font-size: clamp(1.9rem, 5vw, 3.2rem);
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
 }
 .display-m {
-  font-size: clamp(1.3rem, 3vw, 1.9rem);
-}
-
-/* Section heads: sentence case, ending in a period. */
-.section-head {
-  font-family: var(--display);
-  text-transform: none;
-  font-size: 1.05rem;
-  letter-spacing: -0.01em;
-  margin: 0 0 0.75rem;
-  color: var(--paper);
+  font-size: clamp(1.15rem, 2.6vw, 1.55rem);
 }
 
 .eyebrow {
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--grey);
   font-weight: 600;
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.55rem;
 }
 
 .meta {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--grey);
+}
+
+.note {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--grey);
+  margin: 0;
 }
 
 .ember {
@@ -88,6 +91,169 @@ body {
 }
 .highlight {
   color: var(--highlight);
+}
+
+/* ---------- the one screen ---------- */
+
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 10px;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: var(--card-w);
+  width: 100%;
+  margin: 0 auto;
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  font-family: var(--display);
+  text-transform: uppercase;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+/* The card. Fixed height, internal scroll, never grows the page. */
+.card {
+  max-width: var(--card-w);
+  width: 100%;
+  margin: 0 auto;
+  flex: 1;
+  min-height: 0;
+  background: var(--stage-raise);
+  border: 1px solid var(--stage-line);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* progress rail across the top of the card */
+.rail {
+  display: flex;
+  gap: 3px;
+  padding: 10px 16px 0;
+  flex: none;
+}
+
+.rail i {
+  flex: 1;
+  height: 3px;
+  background: var(--stage-line);
+  border-radius: 2px;
+  transition: background 0.35s ease;
+}
+
+.rail i.done {
+  background: var(--ember);
+}
+.rail i.now {
+  background: var(--highlight);
+}
+
+.rail-labels {
+  display: flex;
+  gap: 3px;
+  padding: 6px 16px 0;
+  flex: none;
+}
+
+.rail-labels span {
+  flex: 1;
+  font-size: 0.56rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--grey);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rail-labels span.now {
+  color: var(--highlight);
+}
+
+/* the swapping body */
+.step {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow: hidden;
+  animation: step-in 320ms ease-out;
+}
+
+.step.center {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.step.scroll {
+  overflow-y: auto;
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step {
+    animation: none;
+  }
+}
+
+/* the two-pane live view, inside the card */
+.live {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.live-pane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.live-pane .scrollable {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+  padding-right: 6px;
+}
+
+@media (max-width: 780px) {
+  .live {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  /* On a phone the brief is the point; the transcript collapses to the last turn. */
+  .live-pane.transcript-pane .scrollable {
+    max-height: 116px;
+  }
+  :root {
+    --card-w: 100%;
+  }
 }
 
 /* ---------- ticker ---------- */
@@ -98,7 +264,12 @@ body {
   overflow: hidden;
   white-space: nowrap;
   background: var(--stage-raise);
-  padding: 0.7rem 0;
+  padding: 0.5rem 0;
+  max-width: var(--card-w);
+  width: 100%;
+  margin: 0 auto;
+  flex: none;
+  border-radius: 4px;
 }
 
 .ticker-track {
@@ -110,10 +281,10 @@ body {
 .ticker-track span {
   font-family: var(--display);
   text-transform: uppercase;
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   letter-spacing: 0.04em;
   color: var(--paper);
-  padding-right: 1.4rem;
+  padding-right: 1.2rem;
 }
 
 .ticker-track .sparkle {
@@ -135,57 +306,26 @@ body {
   }
 }
 
-/* ---------- layout ---------- */
-
-.shell {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding-inline: 20px;
-}
-
-.stage {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 28px;
-  align-items: start;
-  padding-block: 32px 64px;
-}
-
-@media (max-width: 900px) {
-  .stage {
-    grid-template-columns: 1fr;
-  }
-}
-
-.panel {
-  background: var(--stage-raise);
-  border: 1px solid var(--stage-line);
-  border-radius: 4px;
-  padding: 20px;
-}
-
-.panel-tall {
-  min-height: 420px;
-}
-
 /* ---------- buttons ---------- */
 
 .btn {
   font-family: var(--display);
   text-transform: uppercase;
-  font-size: 1rem;
+  font-size: 0.95rem;
   letter-spacing: 0.01em;
   border: 2px solid var(--paper);
   background: transparent;
   color: var(--paper);
-  padding: 14px 22px;
+  padding: 12px 20px;
   border-radius: 3px;
   cursor: pointer;
   transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 0.45rem;
   text-decoration: none;
+  line-height: 1.1;
 }
 
 .btn:hover {
@@ -221,8 +361,15 @@ body {
 }
 
 .btn-lg {
-  font-size: 1.3rem;
-  padding: 18px 30px;
+  font-size: 1.15rem;
+  padding: 15px 26px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 /* ---------- brief card ---------- */
@@ -235,16 +382,16 @@ body {
 
 .brief-row {
   display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 12px;
-  padding: 9px 10px;
+  grid-template-columns: 128px 1fr;
+  gap: 10px;
+  padding: 7px 9px;
   border-radius: 3px;
   align-items: start;
   transition: background 0.2s ease;
 }
 
 .brief-row.filled {
-  background: rgba(255, 77, 28, 0.06);
+  background: rgba(255, 77, 28, 0.07);
 }
 
 .brief-row.just-filled {
@@ -256,16 +403,17 @@ body {
     background: rgba(255, 210, 63, 0.35);
   }
   100% {
-    background: rgba(255, 77, 28, 0.06);
+    background: rgba(255, 77, 28, 0.07);
   }
 }
 
 .brief-label {
   font-family: var(--display);
   text-transform: none;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   color: var(--grey);
   padding-top: 2px;
+  line-height: 1.25;
 }
 
 .brief-row.filled .brief-label {
@@ -273,39 +421,45 @@ body {
 }
 
 .brief-value {
-  font-size: 0.9rem;
+  font-size: 0.83rem;
   line-height: 1.45;
   color: var(--paper);
   word-break: break-word;
 }
 
 .brief-value.empty {
-  color: #4a4a56;
-  font-style: italic;
+  color: #45454f;
 }
 
 .brief-list {
   margin: 0;
-  padding-left: 1.05rem;
+  padding-left: 1rem;
 }
 
 .brief-list li {
   margin-bottom: 3px;
 }
 
+@media (max-width: 520px) {
+  .brief-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
 /* pronunciation chips */
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .chip {
   border: 1px solid var(--highlight);
   color: var(--highlight);
   border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 0.75rem;
+  padding: 2px 9px;
+  font-size: 0.71rem;
   font-family: var(--mono);
   white-space: nowrap;
 }
@@ -319,35 +473,36 @@ body {
 /* probe tell */
 .probe-tell {
   display: inline-block;
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
+  font-size: 0.55rem;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--stage-black);
   background: var(--highlight);
   border-radius: 2px;
   padding: 1px 5px;
-  margin-left: 6px;
+  margin-left: 5px;
   vertical-align: middle;
   font-weight: 700;
 }
 
 .probe-item {
   border-left: 2px solid var(--highlight);
-  padding-left: 10px;
-  margin-bottom: 8px;
-  font-size: 0.85rem;
+  padding-left: 9px;
+  margin-bottom: 7px;
+  font-size: 0.8rem;
   line-height: 1.4;
   color: #cfcfd8;
 }
 
-/* ---------- progress ---------- */
+/* ---------- progress meter ---------- */
 
 .meter {
-  height: 4px;
+  height: 3px;
   background: var(--stage-line);
   border-radius: 2px;
   overflow: hidden;
-  margin: 10px 0 16px;
+  margin: 8px 0 12px;
+  flex: none;
 }
 
 .meter-fill {
@@ -358,24 +513,16 @@ body {
 
 /* ---------- transcript ---------- */
 
-.transcript {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 300px;
-  overflow-y: auto;
-  padding-right: 6px;
-}
-
 .turn {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   line-height: 1.5;
+  margin-bottom: 10px;
 }
 
 .turn .who {
   font-family: var(--display);
   text-transform: uppercase;
-  font-size: 0.7rem;
+  font-size: 0.64rem;
   letter-spacing: 0.08em;
   display: block;
   margin-bottom: 2px;
@@ -391,31 +538,35 @@ body {
   color: var(--paper);
 }
 .turn.user {
-  color: #b9b9c4;
+  color: var(--dim);
+}
+
+/* the current question, given weight */
+.now-asking {
+  border-left: 3px solid var(--ember);
+  padding: 2px 0 2px 12px;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  margin-bottom: 14px;
+  flex: none;
 }
 
 /* ---------- player ---------- */
-
-.player {
-  border: 2px solid var(--paper);
-  border-radius: 4px;
-  padding: 22px;
-  background: var(--stage-black);
-}
 
 .wave {
   display: flex;
   align-items: flex-end;
   gap: 3px;
-  height: 64px;
-  margin: 18px 0;
+  height: clamp(48px, 12vh, 88px);
+  margin: 16px 0 8px;
+  width: 100%;
 }
 
 .wave i {
   flex: 1;
   background: var(--stage-line);
   border-radius: 1px;
-  transition: background 0.15s ease;
+  transition: background 0.12s ease;
 }
 
 .wave i.played {
@@ -428,10 +579,11 @@ body {
 
 .clock {
   font-family: var(--mono);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--grey);
   display: flex;
   justify-content: space-between;
+  width: 100%;
 }
 
 /* ---------- paywall ---------- */
@@ -439,10 +591,11 @@ body {
 .doors {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
+  width: 100%;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 720px) {
   .doors {
     grid-template-columns: 1fr;
   }
@@ -451,10 +604,11 @@ body {
 .door {
   border: 1px solid var(--stage-line);
   border-radius: 4px;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  background: var(--stage-raise);
+  text-align: left;
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .door.paid {
@@ -466,31 +620,31 @@ body {
 }
 
 .door ul {
-  margin: 10px 0 18px;
-  padding-left: 1.1rem;
-  font-size: 0.86rem;
-  line-height: 1.6;
-  color: #cfcfd8;
+  margin: 8px 0 14px;
+  padding-left: 1rem;
+  font-size: 0.81rem;
+  line-height: 1.55;
+  color: var(--dim);
   flex: 1;
 }
 
 .price {
   font-family: var(--display);
-  font-size: 2.4rem;
+  font-size: 1.9rem;
   line-height: 1;
-  margin: 4px 0 0;
+  margin: 2px 0 0;
 }
 
 .test-badge {
   display: inline-block;
-  font-size: 0.62rem;
-  letter-spacing: 0.14em;
+  font-size: 0.58rem;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   border: 1px solid var(--grey);
   color: var(--grey);
   border-radius: 2px;
-  padding: 2px 6px;
-  margin-left: 8px;
+  padding: 2px 5px;
+  margin-left: 7px;
   vertical-align: middle;
 }
 
@@ -498,22 +652,25 @@ body {
   border: 2px solid var(--ember);
   background: rgba(255, 77, 28, 0.1);
   border-radius: 4px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  width: 100%;
+  text-align: left;
 }
 
 /* ---------- consent ---------- */
 
-.consent {
-  max-width: 620px;
-  margin: 0 auto;
+.consent-list {
+  padding-left: 1rem;
+  line-height: 1.6;
+  font-size: 0.85rem;
+  color: var(--dim);
+  text-align: left;
+  margin: 0 0 18px;
 }
 
-.consent ul {
-  padding-left: 1.1rem;
-  line-height: 1.7;
-  font-size: 0.92rem;
-  color: #cfcfd8;
+.consent-list li {
+  margin-bottom: 6px;
 }
 
 /* ---------- misc ---------- */
@@ -521,32 +678,28 @@ body {
 .cost-line {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
   font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   color: var(--grey);
-  padding: 3px 0;
-}
-
-.note {
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: var(--grey);
+  padding: 2px 0;
 }
 
 .divider {
   height: 1px;
   background: var(--stage-line);
-  margin: 18px 0;
+  margin: 14px 0;
   border: 0;
+  width: 100%;
 }
 
 .pulse {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--ember);
-  margin-right: 7px;
+  margin-right: 6px;
   animation: pulse 1.2s ease-in-out infinite;
 }
 
@@ -558,10 +711,21 @@ body {
   }
   50% {
     opacity: 0.35;
-    transform: scale(0.75);
+    transform: scale(0.7);
   }
 }
 
 a {
   color: var(--ember);
+}
+
+/* thin scrollbars so internal scroll does not look like a bug */
+.scrollable::-webkit-scrollbar,
+.step.scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollable::-webkit-scrollbar-thumb,
+.step.scroll::-webkit-scrollbar-thumb {
+  background: var(--stage-line);
+  border-radius: 3px;
 }

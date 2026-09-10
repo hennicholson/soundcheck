@@ -1,11 +1,13 @@
 'use client';
 
 /**
- * The single path, end to end.
+ * The single path, end to end, on one contained screen.
  *
  *   consent -> voice intake -> live brief -> generation -> 60s -> paywall
  *
- * Nothing else. There is no second feature on this page on purpose.
+ * One card. Steps swap inside it, the page never scrolls, and the layout
+ * collapses to a single column on a phone. There is no second feature here on
+ * purpose.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -28,6 +30,15 @@ import type { OutcomeEventName } from '@/lib/telemetry/outcomeEvents';
 import Ticker from './Ticker';
 
 type Stage = 'consent' | 'ready' | 'listening' | 'generating' | 'playing' | 'paywall';
+
+const STEPS: { key: Stage; label: string }[] = [
+  { key: 'consent', label: 'Consent' },
+  { key: 'ready', label: 'Start' },
+  { key: 'listening', label: 'Intake' },
+  { key: 'generating', label: 'Build' },
+  { key: 'playing', label: 'Listen' },
+  { key: 'paywall', label: 'Choose' },
+];
 
 interface AgentConfig {
   mode: 'demo' | 'public' | 'signed';
@@ -59,7 +70,7 @@ interface Props {
   jamSeshUrl: string;
 }
 
-const WAVE_BARS = 56;
+const WAVE_BARS = 48;
 
 /**
  * The ElevenLabs SDK keeps conversation state in context, so the provider has
@@ -87,8 +98,9 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
     () => `sc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
     []
   );
-  const startedAt = useRef<number>(0);
+  const startedAt = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const transcriptEnd = useRef<HTMLDivElement | null>(null);
   const briefRef = useRef(brief);
   briefRef.current = brief;
 
@@ -112,6 +124,10 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
       .catch(() => setConfig({ mode: 'demo', reason: 'agent config unreachable' }));
   }, []);
 
+  useEffect(() => {
+    transcriptEnd.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [transcript]);
+
   const flashRow = useCallback((field: string) => {
     setFlash(field);
     setTimeout(() => setFlash((f) => (f === field ? null : f)), 950);
@@ -127,9 +143,7 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
       pronunciations: briefRef.current.pronunciations.length,
     });
 
-    const conversationSeconds = startedAt.current
-      ? (Date.now() - startedAt.current) / 1000
-      : 0;
+    const conversationSeconds = startedAt.current ? (Date.now() - startedAt.current) / 1000 : 0;
 
     try {
       const res = await fetch('/api/generate', {
@@ -141,7 +155,7 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
       setPayload(await res.json());
       setStage('playing');
     } catch (err) {
-      setError(String(err));
+      setError(`Generation failed: ${String(err)}`);
       setStage('playing');
     }
   }, [sessionId, track]);
@@ -178,8 +192,7 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
   const conversation = useConversation({
     clientTools,
     onMessage: (msg: { message?: string; source?: string }) => {
-      const role = msg.source === 'user' ? 'user' : 'agent';
-      setTranscript((t) => appendTurn(t, role, msg.message ?? ''));
+      setTranscript((t) => appendTurn(t, msg.source === 'user' ? 'user' : 'agent', msg.message ?? ''));
     },
     onError: (e: unknown) => setError(String(e)),
   });
@@ -187,25 +200,21 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
   /* ---------------- fixture replay (OR-13) ---------------- */
 
   const replayFixture = useCallback(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
     for (const step of DEMO_SESSION) {
-      timers.push(
-        setTimeout(() => {
-          if (step.kind === 'agent' || step.kind === 'user') {
-            setTranscript((t) => appendTurn(t, step.kind as 'agent' | 'user', step.text));
-          } else if (step.tool === 'updateBriefField') {
-            clientTools.updateBriefField({ field: step.field, value: step.value });
-          } else if (step.tool === 'recordPronunciation') {
-            clientTools.recordPronunciation({ term: step.term, saidAs: step.saidAs });
-          } else if (step.tool === 'logProbe') {
-            clientTools.logProbe({ question: step.question });
-          } else if (step.tool === 'finalizeBrief') {
-            clientTools.finalizeBrief();
-          }
-        }, step.at)
-      );
+      setTimeout(() => {
+        if (step.kind === 'agent' || step.kind === 'user') {
+          setTranscript((t) => appendTurn(t, step.kind as 'agent' | 'user', step.text));
+        } else if (step.tool === 'updateBriefField') {
+          clientTools.updateBriefField({ field: step.field, value: step.value });
+        } else if (step.tool === 'recordPronunciation') {
+          clientTools.recordPronunciation({ term: step.term, saidAs: step.saidAs });
+        } else if (step.tool === 'logProbe') {
+          clientTools.logProbe({ question: step.question });
+        } else if (step.tool === 'finalizeBrief') {
+          clientTools.finalizeBrief();
+        }
+      }, step.at);
     }
-    return () => timers.forEach(clearTimeout);
   }, [clientTools]);
 
   const start = useCallback(async () => {
@@ -220,13 +229,12 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
 
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
+      // A signed URL is a WebSocket handshake; a public agent id can use WebRTC.
       const session =
         config.mode === 'signed' && config.signedUrl
-          ? { signedUrl: config.signedUrl }
-          : { agentId: config.agentId! };
-      // clientTools go in on the session too: this is the connection that
-      // actually drives the brief card.
-      conversation.startSession({ ...session, clientTools, connectionType: 'webrtc' });
+          ? { signedUrl: config.signedUrl, connectionType: 'websocket' as const }
+          : { agentId: config.agentId!, connectionType: 'webrtc' as const };
+      conversation.startSession({ ...session, clientTools });
     } catch (err) {
       // No microphone, or the agent is unreachable. The demo still has to run.
       setError(`Live voice unavailable, replaying the recorded session. (${String(err)})`);
@@ -246,7 +254,6 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
       if (el.currentTime >= PREVIEW_SECONDS) {
         // Hard cut. Not a fade, not a "would you like to continue."
         el.pause();
-        el.currentTime = PREVIEW_SECONDS;
         track('paywall_hit', { at: PREVIEW_SECONDS });
         setStage('paywall');
       }
@@ -277,138 +284,153 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
 
   /* ---------------- render ---------------- */
 
-  const completeness = briefCompleteness(brief);
-  const played = Math.min(elapsed / PREVIEW_SECONDS, 1);
+  const stepIndex = STEPS.findIndex((s) => s.key === stage);
+  const lastAgentTurn = [...transcript].reverse().find((t) => t.role === 'agent');
+  const live = config?.mode === 'signed' || config?.mode === 'public';
 
   return (
-    <>
-      <header className="shell" style={{ paddingBlock: '28px 18px' }}>
-        <p className="eyebrow">Business Bangerz · Sound check</p>
-        <h1 className="display display-xl">
-          Before the show,
-          <br />
-          there&apos;s a <span className="ember">sound check</span>.
-        </h1>
-        <p style={{ maxWidth: 620, color: '#cfcfd8', lineHeight: 1.6, marginTop: 18 }}>
-          Talk to us for two minutes about what&apos;s coming up. You&apos;ll walk away with a
-          finished song brief and sixty seconds of what your banger could sound like.
-        </p>
-      </header>
+    <div className="app">
+      <div className="topbar">
+        <span className="wordmark">
+          Sound check <span className="ember">✦</span> Business Bangerz
+        </span>
+        <span className="meta">
+          {live ? 'Live agent' : 'Offline mode'} · {stage === 'listening' ? 'in session' : 'ready'}
+        </span>
+      </div>
 
       <Ticker />
 
-      <main className="shell">
-        {stage === 'consent' && <Consent onGrant={() => { track('consent_granted'); setStage('ready'); }} onDecline={() => track('consent_declined')} />}
+      <div className="card">
+        <div className="rail">
+          {STEPS.map((s, i) => (
+            <i key={s.key} className={i < stepIndex ? 'done' : i === stepIndex ? 'now' : ''} />
+          ))}
+        </div>
+        <div className="rail-labels">
+          {STEPS.map((s, i) => (
+            <span key={s.key} className={i === stepIndex ? 'now' : ''}>
+              {s.label}
+            </span>
+          ))}
+        </div>
 
-        {stage !== 'consent' && (
-          <div className="stage">
-            <section>
-              {stage === 'ready' && (
-                <div className="panel panel-tall" style={{ display: 'grid', placeItems: 'center', textAlign: 'center' }}>
-                  <div>
-                    <h2 className="display display-l" style={{ marginBottom: 14 }}>
-                      Ready when
-                      <br />
-                      you are.
-                    </h2>
-                    <p className="note" style={{ maxWidth: 320, margin: '0 auto 22px' }}>
-                      About eight questions. Two minutes. Talk like you&apos;d talk to a
-                      songwriter, not like you&apos;re filling in a form.
-                    </p>
-                    <button className="btn btn-primary btn-lg" onClick={start}>
-                      🎵 Start your sound check
-                    </button>
-                    {config?.mode === 'demo' && (
-                      <p className="meta" style={{ marginTop: 16 }}>
-                        Offline mode · replaying a recorded session
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
+        {stage === 'consent' && (
+          <Consent
+            onGrant={() => {
+              track('consent_granted');
+              setStage('ready');
+            }}
+            onDecline={() => track('consent_declined')}
+          />
+        )}
 
-              {stage === 'listening' && (
-                <div className="panel panel-tall">
-                  <p className="eyebrow">
-                    <span className="pulse" />
-                    {config?.mode === 'demo' ? 'Replaying recorded session' : 'Listening'}
-                  </p>
-                  <h2 className="section-head">The conversation.</h2>
-                  <div className="transcript">
-                    {transcript.length === 0 && (
-                      <p className="note">Waiting for the first question.</p>
-                    )}
-                    {transcript.map((t, i) => (
-                      <div key={i} className={`turn ${t.role}`}>
-                        <span className="who">{t.role === 'agent' ? 'Sound check' : 'You'}</span>
-                        {t.text}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {stage === 'generating' && (
-                <div className="panel panel-tall" style={{ display: 'grid', placeItems: 'center', textAlign: 'center' }}>
-                  <div>
-                    <p className="eyebrow">
-                      <span className="pulse" />
-                      Building
-                    </p>
-                    <h2 className="display display-l">
-                      Cutting your
-                      <br />
-                      scratch demo.
-                    </h2>
-                    <p className="note" style={{ marginTop: 16 }}>Sixty seconds. Hang on.</p>
-                  </div>
-                </div>
-              )}
-
-              {(stage === 'playing' || stage === 'paywall') && payload && (
-                <Player
-                  payload={payload}
-                  audioRef={audioRef}
-                  played={played}
-                  elapsed={elapsed}
-                  locked={stage === 'paywall'}
-                  brief={brief}
-                />
-              )}
-
-              {error && (
-                <p className="note" style={{ marginTop: 12, color: 'var(--highlight)' }}>
-                  {error}
-                </p>
-              )}
-            </section>
-
-            <section>
-              <LiveBrief brief={brief} completeness={completeness} flash={flash} />
-            </section>
+        {stage === 'ready' && (
+          <div className="step center">
+            <p className="eyebrow">Before the show, there&apos;s a sound check</p>
+            <h1 className="display display-xl" style={{ marginBottom: 14 }}>
+              Tell us what&apos;s
+              <br />
+              <span className="ember">coming up.</span>
+            </h1>
+            <p className="note" style={{ maxWidth: 400, marginBottom: 22 }}>
+              About eight questions, two minutes. Talk like you&apos;d talk to a songwriter, not
+              like you&apos;re filling in a form. You&apos;ll leave with a finished brief and
+              sixty seconds of your banger.
+            </p>
+            <button className="btn btn-primary btn-lg" onClick={start}>
+              🎵 Start your sound check
+            </button>
+            <p className="meta" style={{ marginTop: 14 }}>
+              {live ? 'Microphone required' : 'Offline · replaying a recorded session'}
+            </p>
           </div>
         )}
 
-        {stage === 'paywall' && payload && (
-          <Paywall
-            checkout={checkout}
-            jamSeshUrl={jamSeshUrl}
-            cost={payload.cost}
-            persistence={payload.persistence}
-            onLicense={() => track('licensed', { price: checkout.price, testMode: checkout.testMode })}
-            onBook={() => track('jam_sesh_booked', { company: brief.company })}
-            brief={brief}
-          />
+        {stage === 'listening' && (
+          <div className="step">
+            <div className="live">
+              <div className="live-pane transcript-pane">
+                <p className="eyebrow">
+                  <span className="pulse" />
+                  {live ? 'Listening' : 'Recorded session'}
+                </p>
+                {lastAgentTurn && <div className="now-asking">{lastAgentTurn.text}</div>}
+                <div className="scrollable">
+                  {transcript.length === 0 && <p className="note">Connecting to the agent.</p>}
+                  {transcript.map((t, i) => (
+                    <div key={i} className={`turn ${t.role}`}>
+                      <span className="who">{t.role === 'agent' ? 'Sound check' : 'You'}</span>
+                      {t.text}
+                    </div>
+                  ))}
+                  <div ref={transcriptEnd} />
+                </div>
+              </div>
+              <LiveBrief brief={brief} flash={flash} />
+            </div>
+          </div>
         )}
-      </main>
 
-      <footer className="shell" style={{ paddingBlock: '40px 60px' }}>
-        <hr className="divider" />
-        <p className="meta">
-          This is a sound check, not the show · Business Bangerz still writes the real banger
-        </p>
-      </footer>
-    </>
+        {stage === 'generating' && (
+          <div className="step center">
+            <p className="eyebrow">
+              <span className="pulse" />
+              Building
+            </p>
+            <h2 className="display display-xl">
+              Cutting your
+              <br />
+              scratch demo.
+            </h2>
+            <p className="note" style={{ marginTop: 14 }}>Sixty seconds. Hang on.</p>
+          </div>
+        )}
+
+        {(stage === 'playing' || stage === 'paywall') && payload && (
+          <div className={`step ${stage === 'paywall' ? 'scroll' : 'center'}`}>
+            {stage === 'playing' && (
+              <>
+                <p className="eyebrow">Scratch demo · {brief.company || 'your company'}</p>
+                <h2 className="display display-l">Sixty seconds.</h2>
+                <Wave elapsed={elapsed} />
+                <p className="note" style={{ marginTop: 10, maxWidth: 460 }}>
+                  {payload.preview.source === 'fixture'
+                    ? 'Generated during the build and served from disk. Said plainly, on purpose.'
+                    : `Generated just now by ${payload.preview.model}.`}
+                </p>
+              </>
+            )}
+
+            {stage === 'paywall' && (
+              <Paywall
+                checkout={checkout}
+                jamSeshUrl={jamSeshUrl}
+                cost={payload.cost}
+                persistence={payload.persistence}
+                onLicense={() =>
+                  track('licensed', { price: checkout.price, testMode: checkout.testMode })
+                }
+                onBook={() => track('jam_sesh_booked', { company: brief.company })}
+                brief={brief}
+              />
+            )}
+
+            <audio ref={audioRef} src={payload.preview.url} preload="auto" />
+          </div>
+        )}
+
+        {error && (
+          <p className="note" style={{ padding: '0 16px 12px', color: 'var(--highlight)' }}>
+            {error}
+          </p>
+        )}
+      </div>
+
+      <p className="meta" style={{ textAlign: 'center', flex: 'none' }}>
+        This is a sound check, not the show ✦ Business Bangerz still writes the real banger
+      </p>
+    </div>
   );
 }
 
@@ -419,9 +441,9 @@ function Consent({ onGrant, onDecline }: { onGrant: () => void; onDecline: () =>
 
   if (declined) {
     return (
-      <div className="panel consent" style={{ marginBlock: 40, textAlign: 'center' }}>
-        <h2 className="display display-m">No problem.</h2>
-        <p className="note" style={{ marginTop: 12 }}>
+      <div className="step center">
+        <h2 className="display display-l">No problem.</h2>
+        <p className="note" style={{ marginTop: 12, maxWidth: 380 }}>
           Nothing was recorded. You can still book a Jam Sesh the normal way and talk to a
           person.
         </p>
@@ -430,19 +452,21 @@ function Consent({ onGrant, onDecline }: { onGrant: () => void; onDecline: () =>
   }
 
   return (
-    <div className="panel consent" style={{ marginBlock: 40 }}>
+    <div className="step scroll">
       <p className="eyebrow">Before we start</p>
-      <h2 className="display display-m" style={{ marginBottom: 14 }}>
-        Here&apos;s what happens to your voice.
+      <h2 className="display display-l" style={{ marginBottom: 14 }}>
+        Here&apos;s what happens
+        <br />
+        to your voice.
       </h2>
-      <ul>
+      <ul className="consent-list">
         <li>
           <b>What we listen to.</b> Your microphone, only while the session is running. The
           moment the brief is done, we stop.
         </li>
         <li>
-          <b>What we keep.</b> The text of what you said, turned into a song brief. The audio
-          itself is not stored — the agent runs with recording off and zero retention.
+          <b>What we keep.</b> The text of what you said, turned into a song brief. The audio is
+          not stored — the agent runs with recording off and zero retention.
         </li>
         <li>
           <b>What it&apos;s used for.</b> Writing your brief and generating your sixty-second
@@ -457,7 +481,7 @@ function Consent({ onGrant, onDecline }: { onGrant: () => void; onDecline: () =>
           loud. Either one ends it and the brief is discarded.
         </li>
       </ul>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 22 }}>
+      <div className="btn-row" style={{ justifyContent: 'flex-start' }}>
         <button className="btn btn-primary" onClick={onGrant}>
           🎧 I&apos;m good, start listening
         </button>
@@ -477,132 +501,98 @@ function Consent({ onGrant, onDecline }: { onGrant: () => void; onDecline: () =>
 
 /* ================= live brief (MR-3 on screen) ================= */
 
-function LiveBrief({
-  brief,
-  completeness,
-  flash,
-}: {
-  brief: BangerBrief;
-  completeness: number;
-  flash: string | null;
-}) {
+function LiveBrief({ brief, flash }: { brief: BangerBrief; flash: string | null }) {
+  const completeness = briefCompleteness(brief);
   return (
-    <div className="panel panel-tall">
-      <p className="eyebrow">Live · BangerBrief v1</p>
-      <h2 className="section-head">Your brief, filling in.</h2>
+    <div className="live-pane">
+      <p className="eyebrow">Live · BangerBrief v1 · {Math.round(completeness * 100)}%</p>
       <div className="meter">
         <div className="meter-fill" style={{ width: `${Math.round(completeness * 100)}%` }} />
       </div>
+      <div className="scrollable">
+        <div className="brief-rows">
+          {BRIEF_FIELD_ORDER.map((field) => {
+            const value = brief[field];
+            const filled = Array.isArray(value) ? value.length > 0 : String(value).length > 0;
+            return (
+              <div
+                key={field}
+                className={`brief-row ${filled ? 'filled' : ''} ${flash === field ? 'just-filled' : ''}`}
+              >
+                <div className="brief-label">
+                  {BRIEF_FIELD_LABELS[field]}
+                  {field === 'vagueAnswersProbed' && brief.vagueAnswersProbed.length > 0 && (
+                    <span className="probe-tell">probed</span>
+                  )}
+                </div>
+                <div className={`brief-value ${filled ? '' : 'empty'}`}>
+                  {!filled && '—'}
 
-      <div className="brief-rows">
-        {BRIEF_FIELD_ORDER.map((field) => {
-          const value = brief[field];
-          const filled = Array.isArray(value) ? value.length > 0 : String(value).length > 0;
-          return (
-            <div
-              key={field}
-              className={`brief-row ${filled ? 'filled' : ''} ${flash === field ? 'just-filled' : ''}`}
-            >
-              <div className="brief-label">
-                {BRIEF_FIELD_LABELS[field]}
-                {field === 'vagueAnswersProbed' && brief.vagueAnswersProbed.length > 0 && (
-                  <span className="probe-tell">probed</span>
-                )}
-              </div>
-              <div className={`brief-value ${filled ? '' : 'empty'}`}>
-                {!filled && '—'}
-
-                {filled && field === 'pronunciations' && (
-                  <div className="chips">
-                    {brief.pronunciations.map((p) => (
-                      <span key={p.term} className="chip">
-                        <b>{p.term}</b> · {p.saidAs}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {filled && field === 'vagueAnswersProbed' && (
-                  <div>
-                    {brief.vagueAnswersProbed.map((q, i) => (
-                      <div key={i} className="probe-item">
-                        {q}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {filled && field !== 'pronunciations' && field !== 'vagueAnswersProbed' && (
-                  isListField(field) ? (
-                    <ul className="brief-list">
-                      {(value as string[]).map((v, i) => (
-                        <li key={i}>{v}</li>
+                  {filled && field === 'pronunciations' && (
+                    <div className="chips">
+                      {brief.pronunciations.map((p) => (
+                        <span key={p.term} className="chip">
+                          <b>{p.term}</b> · {p.saidAs}
+                        </span>
                       ))}
-                    </ul>
-                  ) : (
-                    String(value)
-                  )
-                )}
+                    </div>
+                  )}
+
+                  {filled && field === 'vagueAnswersProbed' && (
+                    <div>
+                      {brief.vagueAnswersProbed.map((q, i) => (
+                        <div key={i} className="probe-item">
+                          {q}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {filled &&
+                    field !== 'pronunciations' &&
+                    field !== 'vagueAnswersProbed' &&
+                    (isListField(field) ? (
+                      <ul className="brief-list">
+                        {(value as string[]).map((v, i) => (
+                          <li key={i}>{v}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      String(value)
+                    ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-/* ================= player + the gate ================= */
+/* ================= player ================= */
 
-function Player({
-  payload,
-  audioRef,
-  played,
-  elapsed,
-  locked,
-  brief,
-}: {
-  payload: PreviewPayload;
-  audioRef: React.RefObject<HTMLAudioElement | null>;
-  played: number;
-  elapsed: number;
-  locked: boolean;
-  brief: BangerBrief;
-}) {
-  const headBar = Math.floor(played * WAVE_BARS);
+function Wave({ elapsed }: { elapsed: number }) {
+  const played = Math.min(elapsed / PREVIEW_SECONDS, 1);
+  const head = Math.floor(played * WAVE_BARS);
   return (
-    <div className="panel">
-      <p className="eyebrow">Scratch demo · {brief.company || 'your company'}</p>
-      <h2 className="display display-m" style={{ marginBottom: 6 }}>
-        {locked ? 'That’s the sound check.' : 'Sixty seconds.'}
-      </h2>
-
-      <div className="player" style={{ marginTop: 16 }}>
-        <div className="wave">
-          {Array.from({ length: WAVE_BARS }).map((_, i) => {
-            const seed = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;
-            const h = 22 + seed * 78;
-            return (
-              <i
-                key={i}
-                className={i === headBar ? 'head' : i < headBar ? 'played' : ''}
-                style={{ height: `${h}%` }}
-              />
-            );
-          })}
-        </div>
-        <div className="clock">
-          <span>{fmt(elapsed)}</span>
-          <span>{locked ? 'CUT' : `-${fmt(PREVIEW_SECONDS - elapsed)}`}</span>
-        </div>
-        <audio ref={audioRef} src={payload.preview.url} preload="auto" />
+    <div style={{ width: '100%', maxWidth: 560 }}>
+      <div className="wave">
+        {Array.from({ length: WAVE_BARS }).map((_, i) => {
+          const seed = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;
+          return (
+            <i
+              key={i}
+              className={i === head ? 'head' : i < head ? 'played' : ''}
+              style={{ height: `${22 + seed * 78}%` }}
+            />
+          );
+        })}
       </div>
-
-      <p className="note" style={{ marginTop: 14 }}>
-        {payload.preview.source === 'fixture'
-          ? 'Pre-baked during the build and served from disk. Stated plainly, on purpose.'
-          : `Generated just now by ${payload.preview.model}.`}
-      </p>
+      <div className="clock">
+        <span>{fmt(elapsed)}</span>
+        <span>-{fmt(PREVIEW_SECONDS - elapsed)}</span>
+      </div>
     </div>
   );
 }
@@ -639,9 +629,7 @@ function Paywall({
     s.src = 'https://js.whop.com/static/checkout/loader.js';
     s.async = true;
     document.body.appendChild(s);
-    return () => {
-      s.remove();
-    };
+    return () => s.remove();
   }, [checkoutOpen, checkout.planId]);
 
   const download = () => {
@@ -655,9 +643,9 @@ function Paywall({
   };
 
   return (
-    <section style={{ paddingBottom: 40 }}>
+    <>
       <div className="lock-strip">
-        <p className="display display-m" style={{ marginBottom: 6 }}>
+        <p className="display display-m" style={{ marginBottom: 5 }}>
           🔒 That&apos;s where the free part stops.
         </p>
         <p className="note" style={{ color: '#e8e4da' }}>
@@ -679,7 +667,7 @@ function Paywall({
               <li key={i}>{i}</li>
             ))}
           </ul>
-          <p className="note" style={{ marginBottom: 14 }}>{checkout.licence}</p>
+          <p className="note" style={{ marginBottom: 12 }}>{checkout.licence}</p>
           {!checkoutOpen ? (
             <button
               className="btn btn-primary"
@@ -694,8 +682,8 @@ function Paywall({
             <div data-whop-checkout-plan-id={checkout.planId} data-whop-checkout-theme="dark" />
           ) : (
             <p className="note">
-              Whop checkout runs in test mode. Set NEXT_PUBLIC_WHOP_PLAN_ID to mount the real
-              embedded checkout.
+              Whop checkout is in test mode. Set NEXT_PUBLIC_WHOP_PLAN_ID to mount the embedded
+              checkout.
             </p>
           )}
         </div>
@@ -709,11 +697,17 @@ function Paywall({
             <li>Your brief arrives before the call does</li>
             <li>He starts at minute ten, not minute zero</li>
           </ul>
-          <p className="note" style={{ marginBottom: 14 }}>
+          <p className="note" style={{ marginBottom: 12 }}>
             Bring this brief to a 20-minute Jam Sesh and we&apos;ll write you the real thing.
           </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <a className="btn btn-gold" href={jamSeshUrl} target="_blank" rel="noreferrer" onClick={onBook}>
+          <div className="btn-row" style={{ justifyContent: 'flex-start' }}>
+            <a
+              className="btn btn-gold"
+              href={jamSeshUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={onBook}
+            >
               🎧 Book it
             </a>
             <button className="btn btn-ghost" onClick={download}>
@@ -723,9 +717,10 @@ function Paywall({
         </div>
       </div>
 
-      <div className="panel" style={{ marginTop: 20 }}>
+      <hr className="divider" />
+
+      <div style={{ width: '100%', textAlign: 'left' }}>
         <p className="eyebrow">What this session cost</p>
-        <h3 className="section-head">The honest number.</h3>
         {cost.lines.map((l) => (
           <div key={l.label} className="cost-line">
             <span>
@@ -734,22 +729,23 @@ function Paywall({
             <span>${l.usd.toFixed(4)}</span>
           </div>
         ))}
-        <hr className="divider" />
-        <div className="cost-line" style={{ color: 'var(--paper)', fontSize: '0.9rem' }}>
+        <div
+          className="cost-line"
+          style={{ color: 'var(--paper)', fontSize: '0.85rem', marginTop: 4 }}
+        >
           <span>Total</span>
           <span>${cost.totalUsd.toFixed(2)}</span>
         </div>
         <div className="cost-line">
           <span>Founder minutes used</span>
-          <span>0 (vs ~{cost.founderMinutesSaved} saved on the call)</span>
+          <span>0, against ~{cost.founderMinutesSaved} saved on the call</span>
         </div>
-        <hr className="divider" />
-        <p className="note">{cost.notes.join(' ')}</p>
         <p className="note" style={{ marginTop: 10 }}>
-          Persistence: {persistence.stubbed ? 'stubbed. ' : 'live. '}
-          Would write to {persistence.wouldWrite.map((w) => w.table).join(', ')}.
+          {cost.notes.join(' ')} Persistence is{' '}
+          {persistence.stubbed ? 'stubbed' : 'live'}; this would write to{' '}
+          {persistence.wouldWrite.map((w) => w.table).join(', ')}.
         </p>
       </div>
-    </section>
+    </>
   );
 }

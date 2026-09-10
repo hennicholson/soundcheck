@@ -42,3 +42,6 @@ next-env.d.ts
 
 # keep the example committed; real values live in .env.local only
 !.env.example
+
+# Local Netlify folder
+.netlify
