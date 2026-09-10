@@ -330,8 +330,22 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
   const live = config?.mode === 'signed' || config?.mode === 'public';
 
   return (
-    <div className="app">
-      <div className="topbar">
+    <>
+      {/* Muted, looping, decorative. Never the reason a page is slow to speak. */}
+      <video
+        className="bg-video"
+        src="/video/stage-loop.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+      />
+      <div className="bg-scrim" aria-hidden="true" />
+
+      <div className="app">
+        <div className="topbar">
         <span className="wordmark">
           Sound check <span className="ember">✦</span> Business Bangerz
         </span>
@@ -495,10 +509,11 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
         )}
       </div>
 
-      <p className="meta" style={{ textAlign: 'center', flex: 'none' }}>
-        This is a sound check, not the show ✦ Business Bangerz still writes the real banger
-      </p>
-    </div>
+        <p className="meta" style={{ textAlign: 'center', flex: 'none' }}>
+          This is a sound check, not the show ✦ Business Bangerz still writes the real banger
+        </p>
+      </div>
+    </>
   );
 }
 
