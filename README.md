@@ -66,7 +66,12 @@ Written before the demo script, and it is the same list.
   the paywall.
 - Telemetry. The full funnel is logged, and a per-session cost estimate is
   reported on screen.
-- Whop checkout, in test mode. Stated on the card itself, not buried here.
+- Whop checkout, in test mode, and here is exactly what that means. The paid
+  door is built: the licence copy, the price, the embedded-checkout mount and a
+  hosted-checkout link are all wired to `NEXT_PUBLIC_WHOP_PLAN_ID`. That
+  variable is intentionally left empty, so pressing *License it* reveals a
+  test-mode note instead of a live checkout. No card is ever charged and no
+  payment is captured. Setting a real plan ID is the only change needed.
 - Music generation. Lyria 3 Pro on fal.ai, called with a prompt composed from
   the brief. This runs live and has been run live.
 

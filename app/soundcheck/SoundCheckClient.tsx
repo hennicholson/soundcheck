@@ -747,7 +747,19 @@ function Paywall({
               🔥 License it
             </button>
           ) : checkout.planId ? (
-            <div data-whop-checkout-plan-id={checkout.planId} data-whop-checkout-theme="dark" />
+            <>
+              <div data-whop-checkout-plan-id={checkout.planId} data-whop-checkout-theme="dark" />
+              {/* Never let a third-party script be the only way to pay. */}
+              <a
+                className="btn btn-ghost btn-sm"
+                style={{ marginTop: 10 }}
+                href={`https://whop.com/checkout/${checkout.planId}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open checkout in a new tab
+              </a>
+            </>
           ) : (
             <p className="note">
               Whop checkout is in test mode. Set NEXT_PUBLIC_WHOP_PLAN_ID to mount the embedded

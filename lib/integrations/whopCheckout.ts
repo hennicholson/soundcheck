@@ -21,6 +21,15 @@ export interface CheckoutConfig {
   licence: string;
 }
 
+/**
+ * The hosted checkout, as a plain link. The embed is nicer, but a live demo
+ * should never depend on a third-party script loading, so the link is always
+ * rendered as well.
+ */
+export function checkoutUrl(planId: string): string {
+  return `https://whop.com/checkout/${planId}`;
+}
+
 export function checkoutConfig(env: NodeJS.ProcessEnv = process.env): CheckoutConfig {
   return {
     planId: env.NEXT_PUBLIC_WHOP_PLAN_ID ?? '',
