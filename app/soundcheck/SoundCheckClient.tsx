@@ -329,6 +329,12 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
   const lastAgentTurn = [...transcript].reverse().find((t) => t.role === 'agent');
   const live = config?.mode === 'signed' || config?.mode === 'public';
 
+  // On the live path the SDK tells us who is talking. On the recorded path
+  // there is no audio, so treat a fresh agent line as the agent talking.
+  const agentSpeaking = live
+    ? conversation.isSpeaking
+    : transcript[transcript.length - 1]?.role === 'agent';
+
   return (
     <>
       <div className="app">
@@ -426,6 +432,11 @@ function SoundCheckFlow({ checkout, jamSeshUrl }: Props) {
                     <div className="now-asking">{lastAgentTurn.text}</div>
                   </div>
                 )}
+                {/* The DJ animates only while the agent is actually talking,
+                    so the screen tells you whose turn it is without a label. */}
+                <div className={`dj ${agentSpeaking ? 'talking' : ''}`} aria-hidden="true">
+                  <img src="/video/dj-talking.webp" alt="" />
+                </div>
                 <div className="scrollable">
                   {transcript.length === 0 && <p className="note">Connecting to the agent.</p>}
                   {transcript.map((t, i) => (

@@ -781,6 +781,43 @@ body {
   padding: 2px 0;
 }
 
+/* ---------- the DJ ---------- */
+
+/* Sits at the bottom of the transcript pane. Dimmed and still when it is your
+   turn, lit and animating when the agent is talking. */
+.dj {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 8px;
+  width: clamp(84px, 16%, 128px);
+  opacity: 0.32;
+  filter: grayscale(0.7);
+  transition: opacity 0.25s ease, filter 0.25s ease, transform 0.25s ease;
+  transform: scale(0.96);
+}
+
+.dj.talking {
+  opacity: 1;
+  filter: none;
+  transform: scale(1);
+}
+
+.dj img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 780px) {
+  .dj {
+    position: absolute;
+    right: 12px;
+    bottom: 64px;
+    width: 76px;
+    margin-top: 0;
+  }
+}
+
 /* ---------- fold ---------- */
 
 .fold {
